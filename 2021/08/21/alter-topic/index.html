@@ -1,0 +1,438 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>【kafka源码】kafka-topics.sh之alter源码解析(分区扩容) | 石臻臻的杂货铺</title><meta name="keywords" content="kafka"><meta name="author" content="石臻臻"><meta name="copyright" content="石臻臻"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="描述描述描述描述描述描述描述描述描述">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)">
+<meta property="og:url" content="http://example.com/2021/08/21/alter-topic/index.html">
+<meta property="og:site_name" content="石臻臻的杂货铺">
+<meta property="og:description" content="描述描述描述描述描述描述描述描述描述">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg">
+<meta property="article:published_time" content="2021-08-21T06:03:44.000Z">
+<meta property="article:modified_time" content="2021-08-23T08:23:02.958Z">
+<meta property="article:author" content="石臻臻">
+<meta property="article:tag" content="kafka">
+<meta property="article:tag" content="大数据">
+<meta property="article:tag" content="源码">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2021/08/21/alter-topic/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"search.xml","languages":{"hits_empty":"找不到您查询的内容：${query}"}},
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":200},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: true,
+    post: true
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'mediumZoom',
+  Snackbar: undefined,
+  source: {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js',
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+    },
+    fancybox: {
+      js: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2021-08-23 16:23:02'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if (GLOBAL_CONFIG_SITE.isHome && /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 5.4.0"><link rel="alternate" href="/atom.xml" title="石臻臻的杂货铺" type="application/atom+xml">
+</head><body><div id="loading-box"><div class="loading-left-bg"></div><div class="loading-right-bg"></div><div class="spinner-box"><div class="configure-border-1"><div class="configure-core"></div></div><div class="configure-border-2"><div class="configure-core"></div></div><div class="loading-word">加载中...</div></div></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="https://img-blog.csdnimg.cn/a7a864941d6841098e68e23968bdb2c8.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">3</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/didi/"><i class="fa-fw fas fa-heart"></i><span> 滴滴开源</span></a></div><div class="menus_item"><a class="site-page" href="/kafka/"><span> kafka</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标籤</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background: orange"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">石臻臻的杂货铺</a></span><div id="menus"><div id="search-button"><a class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/didi/"><i class="fa-fw fas fa-heart"></i><span> 滴滴开源</span></a></div><div class="menus_item"><a class="site-page" href="/kafka/"><span> kafka</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标籤</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2021-08-21T06:03:44.000Z" title="发表于 2021-08-21 14:03:44">2021-08-21</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2021-08-23T08:23:02.958Z" title="更新于 2021-08-23 16:23:02">2021-08-23</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/kafka/">kafka</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-wordcount"><i class="far fa-file-word fa-fw post-meta-icon"></i><span class="post-meta-label">字数总计:</span><span class="word-count">3.7k</span><span class="post-meta-separator">|</span><i class="far fa-clock fa-fw post-meta-icon"></i><span class="post-meta-label">阅读时长:</span><span>15分钟</span></span><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><p>[TOC]</p>
+<h2 id="脚本参数"><a href="#脚本参数" class="headerlink" title="脚本参数"></a>脚本参数</h2><p><code>sh bin/kafka-topic -help</code> 查看更具体参数</p>
+<p>下面只是列出了跟<code> --alter</code> 相关的参数</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>描述</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--bootstrap-server </code> 指定kafka服务</td>
+<td>指定连接到的kafka服务; 如果有这个参数,则 <code>--zookeeper</code>可以不需要</td>
+<td>–bootstrap-server localhost:9092</td>
+</tr>
+<tr>
+<td><code>--replica-assignment </code></td>
+<td>副本分区分配方式;修改topic的时候可以自己指定副本分配情况;</td>
+<td><code>--replica-assignment  id0:id1:id2,id3:id4:id5,id6:id7:id8 </code>；其中，“id0:id1:id2,id3:id4:id5,id6:id7:id8”表示Topic TopicName一共有3个Partition（以“,”分隔），每个Partition均有3个Replica（以“:”分隔），Topic Partition Replica与Kafka Broker之间的对应关系如下:<img src="https://img-blog.csdnimg.cn/20210617140207438.png" alt="在这里插入图片描述"></td>
+</tr>
+<tr>
+<td><code>--topic</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>--partitions</code></td>
+<td>扩展到新的分区数</td>
+<td></td>
+</tr>
+</tbody></table>
+<h2 id="Alert-Topic脚本"><a href="#Alert-Topic脚本" class="headerlink" title="Alert Topic脚本"></a>Alert Topic脚本</h2><h2 id="分区扩容"><a href="#分区扩容" class="headerlink" title="分区扩容"></a>分区扩容</h2><p><strong>zk方式(不推荐)</strong></p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bin/kafka-topics.sh --zookeeper localhost:2181 --alter --topic topic1 --partitions 2</span><br></pre></td></tr></table></figure>
+
+<p><strong>kafka版本 &gt;= 2.2 支持下面方式（推荐）</strong><br><strong>单个Topic扩容</strong></p>
+<blockquote>
+<p><code>bin/kafka-topics.sh --bootstrap-server broker_host:port --alter --topic test_create_topic1 --partitions 4</code></p>
+</blockquote>
+<p><strong>批量扩容</strong> (将所有正则表达式匹配到的Topic分区扩容到4个)</p>
+<blockquote>
+<p><code>sh bin/kafka-topics.sh --topic &quot;.*?&quot; --bootstrap-server 172.23.248.85:9092 --alter --partitions 4</code></p>
+<p><code>&quot;.*?&quot;</code> 正则表达式的意思是匹配所有; 您可按需匹配</p>
+</blockquote>
+<p><strong>PS:</strong> 当某个Topic的分区少于指定的分区数时候,他会抛出异常;但是不会影响其他Topic正常进行;</p>
+<hr>
+<p>相关可选参数</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>描述</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--replica-assignment </code></td>
+<td>副本分区分配方式;创建topic的时候可以自己指定副本分配情况;</td>
+<td><code>--replica-assignment</code> BrokerId-0:BrokerId-1:BrokerId-2,BrokerId-1:BrokerId-2:BrokerId-0,BrokerId-2:BrokerId-1:BrokerId-0  ; 这个意思是有三个分区和三个副本,对应分配的Broker; 逗号隔开标识分区;冒号隔开表示副本</td>
+</tr>
+</tbody></table>
+<p><strong>PS: 虽然这里配置的是全部的分区副本分配配置,但是真正生效的是新增的分区;</strong><br>比如: 以前3分区1副本是这样的</p>
+<table>
+<thead>
+<tr>
+<th>Broker-1</th>
+<th>Broker-2</th>
+<th>Broker-3</th>
+<th>Broker-4</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>1</td>
+<td>2</td>
+<td></td>
+</tr>
+<tr>
+<td>现在新增一个分区,<code>--replica-assignment</code>  2,1,3,4 ; 看这个意思好像是把0，1号分区互相换个Broker</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Broker-1</td>
+<td>Broker-2</td>
+<td>Broker-3</td>
+<td>Broker-4</td>
+</tr>
+<tr>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0</td>
+<td>2</td>
+<td>3</td>
+</tr>
+<tr>
+<td>但是实际上不会这样做,Controller在处理的时候会把前面3个截掉; 只取新增的分区分配方式,原来的还是不会变</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Broker-1</td>
+<td>Broker-2</td>
+<td>Broker-3</td>
+<td>Broker-4</td>
+</tr>
+<tr>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tbody></table>
+<h2 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h2><blockquote>
+<p><font color=red>如果觉得源码解析过程比较枯燥乏味,可以直接如果 <strong>源码总结及其后面部分</strong></font></p>
+</blockquote>
+<p>因为在 <a href="">【kafka源码】TopicCommand之创建Topic源码解析</a> 里面分析的比较详细; 故本文就着重点分析了;</p>
+<h3 id="1-TopicCommand-alterTopic"><a href="#1-TopicCommand-alterTopic" class="headerlink" title="1. TopicCommand.alterTopic"></a>1. <code>TopicCommand.alterTopic</code></h3><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">alterTopic</span></span>(opts: <span class="type">TopicCommandOptions</span>): <span class="type">Unit</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> topic = <span class="keyword">new</span> <span class="type">CommandTopicPartition</span>(opts)</span><br><span class="line">  <span class="keyword">val</span> topics = getTopics(opts.topic, opts.excludeInternalTopics)</span><br><span class="line">  <span class="comment">//校验Topic是否存在</span></span><br><span class="line">  ensureTopicExists(topics, opts.topic)</span><br><span class="line">  <span class="comment">//获取一下该topic的一些基本信息</span></span><br><span class="line">  <span class="keyword">val</span> topicsInfo = adminClient.describeTopics(topics.asJavaCollection).values()</span><br><span class="line">  adminClient.createPartitions(topics.map &#123;topicName =&gt;</span><br><span class="line">    <span class="comment">//判断是否有参数 replica-assignment  指定分区分配方式</span></span><br><span class="line">    <span class="keyword">if</span> (topic.hasReplicaAssignment) &#123;</span><br><span class="line">      <span class="keyword">val</span> startPartitionId = topicsInfo.get(topicName).get().partitions().size()</span><br><span class="line">      <span class="keyword">val</span> newAssignment = &#123;</span><br><span class="line">        <span class="keyword">val</span> replicaMap = topic.replicaAssignment.get.drop(startPartitionId)</span><br><span class="line">        <span class="keyword">new</span> util.<span class="type">ArrayList</span>(replicaMap.map(p =&gt; p._2.asJava).asJavaCollection).asInstanceOf[util.<span class="type">List</span>[util.<span class="type">List</span>[<span class="type">Integer</span>]]]</span><br><span class="line">      &#125;</span><br><span class="line">      topicName -&gt; <span class="type">NewPartitions</span>.increaseTo(topic.partitions.get, newAssignment)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      </span><br><span class="line">      topicName -&gt; <span class="type">NewPartitions</span>.increaseTo(topic.partitions.get)</span><br><span class="line">    &#125;&#125;.toMap.asJava).all().get()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>校验Topic是否存在</li>
+<li>如果设置了<code>--replica-assignment </code>参数, 则会算出新增的分区数的分配; 这个并不会修改原本已经分配好的分区结构.从源码就可以看出来,假如我之前的分配方式是3,3,3(3分区一个副本都在BrokerId-3上)现在我传入的参数是: <code>3,3,3,3</code>(多出来一个分区),这个时候会把原有的给截取掉;只传入3，(表示在Broker3新增一个分区)<img src="https://img-blog.csdnimg.cn/20210617142452499.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></li>
+<li>如果没有传入参数<code>--replica-assignment</code>，则后面会用默认分配策略分配</li>
+</ol>
+<h4 id="客户端发起请求createPartitions"><a href="#客户端发起请求createPartitions" class="headerlink" title="客户端发起请求createPartitions"></a>客户端发起请求createPartitions</h4><p><code>KafkaAdminClient.createPartitions</code> 省略部分代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"> <span class="meta">@Override</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> CreatePartitionsResult <span class="title">createPartitions</span><span class="params">(Map&lt;String, NewPartitions&gt; newPartitions,</span></span></span><br><span class="line"><span class="params"><span class="function">                                                <span class="keyword">final</span> CreatePartitionsOptions options)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">final</span> Map&lt;String, KafkaFutureImpl&lt;Void&gt;&gt; futures = <span class="keyword">new</span> HashMap&lt;&gt;(newPartitions.size());</span><br><span class="line">     <span class="keyword">for</span> (String topic : newPartitions.keySet()) &#123;</span><br><span class="line">         futures.put(topic, <span class="keyword">new</span> KafkaFutureImpl&lt;&gt;());</span><br><span class="line">     &#125;</span><br><span class="line">runnable.call(<span class="keyword">new</span> Call(<span class="string">&quot;createPartitions&quot;</span>, calcDeadlineMs(now, options.timeoutMs()),</span><br><span class="line">             <span class="keyword">new</span> ControllerNodeProvider()) &#123;</span><br><span class="line">             <span class="comment">//省略部分代码</span></span><br><span class="line">                         <span class="meta">@Override</span></span><br><span class="line">         <span class="function"><span class="keyword">void</span> <span class="title">handleFailure</span><span class="params">(Throwable throwable)</span> </span>&#123;</span><br><span class="line">             completeAllExceptionally(futures.values(), throwable);</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;, now);</span><br><span class="line">     <span class="keyword">return</span> <span class="keyword">new</span> CreatePartitionsResult(<span class="keyword">new</span> HashMap&lt;&gt;(futures));</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>从源码中可以看到向<code>ControllerNodeProvider</code> 发起来<code>createPartitions</code>请求</li>
+</ol>
+<h3 id="2-Controller角色的服务端接受createPartitions请求处理逻辑"><a href="#2-Controller角色的服务端接受createPartitions请求处理逻辑" class="headerlink" title="2. Controller角色的服务端接受createPartitions请求处理逻辑"></a>2. Controller角色的服务端接受createPartitions请求处理逻辑</h3><blockquote>
+<p><code>KafkaApis.handleCreatePartitionsRequest</code></p>
+</blockquote>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handleCreatePartitionsRequest</span></span>(request: <span class="type">RequestChannel</span>.<span class="type">Request</span>): <span class="type">Unit</span> = &#123;</span><br><span class="line">    <span class="keyword">val</span> createPartitionsRequest = request.body[<span class="type">CreatePartitionsRequest</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment">//部分代码省略..</span></span><br><span class="line"></span><br><span class="line">     <span class="comment">//如果当前不是Controller角色直接抛出异常</span></span><br><span class="line">    <span class="keyword">if</span> (!controller.isActive) &#123;</span><br><span class="line">      <span class="keyword">val</span> result = createPartitionsRequest.data.topics.asScala.map &#123; topic =&gt;</span><br><span class="line">        (topic.name, <span class="keyword">new</span> <span class="type">ApiError</span>(<span class="type">Errors</span>.<span class="type">NOT_CONTROLLER</span>, <span class="literal">null</span>))</span><br><span class="line">      &#125;.toMap</span><br><span class="line">      sendResponseCallback(result)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// Special handling to add duplicate topics to the response</span></span><br><span class="line">      <span class="keyword">val</span> topics = createPartitionsRequest.data.topics.asScala</span><br><span class="line">      <span class="keyword">val</span> dupes = topics.groupBy(_.name)</span><br><span class="line">        .filter &#123; _._2.size &gt; <span class="number">1</span> &#125;</span><br><span class="line">        .keySet</span><br><span class="line">      <span class="keyword">val</span> notDuped = topics.filterNot(topic =&gt; dupes.contains(topic.name))</span><br><span class="line">      <span class="keyword">val</span> authorizedTopics = filterAuthorized(request, <span class="type">ALTER</span>, <span class="type">TOPIC</span>, notDuped.map(_.name))</span><br><span class="line">      <span class="keyword">val</span> (authorized, unauthorized) = notDuped.partition &#123; topic =&gt; authorizedTopics.contains(topic.name) &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> (queuedForDeletion, valid) = authorized.partition &#123; topic =&gt;</span><br><span class="line">        controller.topicDeletionManager.isTopicQueuedUpForDeletion(topic.name)</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> errors = dupes.map(_ -&gt; <span class="keyword">new</span> <span class="type">ApiError</span>(<span class="type">Errors</span>.<span class="type">INVALID_REQUEST</span>, <span class="string">&quot;Duplicate topic in request.&quot;</span>)) ++</span><br><span class="line">        unauthorized.map(_.name -&gt; <span class="keyword">new</span> <span class="type">ApiError</span>(<span class="type">Errors</span>.<span class="type">TOPIC_AUTHORIZATION_FAILED</span>, <span class="string">&quot;The topic authorization is failed.&quot;</span>)) ++</span><br><span class="line">        queuedForDeletion.map(_.name -&gt; <span class="keyword">new</span> <span class="type">ApiError</span>(<span class="type">Errors</span>.<span class="type">INVALID_TOPIC_EXCEPTION</span>, <span class="string">&quot;The topic is queued for deletion.&quot;</span>))</span><br><span class="line"></span><br><span class="line">      adminManager.createPartitions(createPartitionsRequest.data.timeoutMs,</span><br><span class="line">        valid,</span><br><span class="line">        createPartitionsRequest.data.validateOnly,</span><br><span class="line">        request.context.listenerName, result =&gt; sendResponseCallback(result ++ errors))</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><p>检验自身是不是Controller角色,不是的话就抛出异常终止流程</p>
+</li>
+<li><p>鉴权</p>
+</li>
+<li><p>调用<code> adminManager.createPartitions</code><br>3.1 从zk中获取<code>/brokers/ids/</code>Brokers列表的元信息的<br>3.2 从zk获取<code>/brokers/topics/&#123;topicName&#125;</code>已经存在的副本分配方式,并判断是否有正在进行副本重分配的进程在执行,如果有的话就抛出异常结束流程<br>3.3 如果从zk获取<code>/brokers/topics/&#123;topicName&#125;</code>数据不存在则抛出异常 <code>The topic &#39;$topic&#39; does not exist</code><br>3.4 检查修改的分区数是否比原来的分区数大，如果比原来还小或者等于原来分区数则抛出异常结束流程<br>3.5 如果传入的参数<code>--replica-assignment</code> 中有不存在的BrokerId;则抛出异常<code>Unknown broker(s) in replica assignment</code>结束流程<br>3.5 如果传入的<code>--partitions</code>数量 与<code>--replica-assignment</code>中新增的部分数量不匹配则抛出异常<code>Increasing the number of partitions by...</code> 结束流程<br>3.6 调用<code> adminZkClient.addPartitions</code></p>
+</li>
+</ol>
+<h4 id="adminZkClient-addPartitions-添加分区"><a href="#adminZkClient-addPartitions-添加分区" class="headerlink" title=" adminZkClient.addPartitions 添加分区"></a><code> adminZkClient.addPartitions</code> 添加分区</h4><ol>
+<li>校验<code>--partitions</code>数量是否比存在的分区数大,否则异常<code>The number of partitions for a topic can only be increased</code></li>
+<li>如果传入了<code>--replica-assignment</code> ,则对副本进行一些简单的校验</li>
+<li>调用<code>AdminUtils.assignReplicasToBrokers</code>分配副本 ; 这个我们在<a href="">【kafka源码】TopicCommand之创建Topic源码解析</a> 也分析过; 具体请看<a href="">【kafka源码】创建Topic的时候是如何分区和副本的分配规则</a>;  当然这里由于我们是新增的分区,只会将新增的分区进行分配计算</li>
+<li>得到分配规则只后,调用<code>adminZkClient.writeTopicPartitionAssignment</code> 写入</li>
+</ol>
+<h4 id="adminZkClient-writeTopicPartitionAssignment将分区信息写入zk中"><a href="#adminZkClient-writeTopicPartitionAssignment将分区信息写入zk中" class="headerlink" title="adminZkClient.writeTopicPartitionAssignment将分区信息写入zk中"></a>adminZkClient.writeTopicPartitionAssignment将分区信息写入zk中</h4><p><img src="https://img-blog.csdnimg.cn/20210617154406685.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p>我们在 <a href="">【kafka源码】TopicCommand之创建Topic源码解析</a>的时候也分析过这段代码,但是那个时候调用的是<code>zkClient.createTopicAssignment</code> 创建接口<br>这里我们是调用<code>        zkClient.setTopicAssignment</code> 写入接口, 写入当然会覆盖掉原有的信息,所以写入的时候会把原来分区信息获取到,重新写入;</p>
+<ol>
+<li>获取Topic原有分区副本分配信息</li>
+<li>将原有的和现在要添加的组装成一个数据对象写入到zk节点<code>/brokers/topics/&#123;topicName&#125;</code>中</li>
+</ol>
+<h3 id="3-Controller监控节点-brokers-topics-topicName-真正在Broker上将分区写入磁盘"><a href="#3-Controller监控节点-brokers-topics-topicName-真正在Broker上将分区写入磁盘" class="headerlink" title="3. Controller监控节点/brokers/topics/{topicName} ,真正在Broker上将分区写入磁盘"></a>3. Controller监控节点<code>/brokers/topics/&#123;topicName&#125;</code> ,真正在Broker上将分区写入磁盘</h3><p>监听到节点信息变更之后调用下面的接口;<br><code>KafkaController.processPartitionModifications</code></p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">processPartitionModifications</span></span>(topic: <span class="type">String</span>): <span class="type">Unit</span> = &#123;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">restorePartitionReplicaAssignment</span></span>(</span><br><span class="line">      topic: <span class="type">String</span>,</span><br><span class="line">      newPartitionReplicaAssignment: <span class="type">Map</span>[<span class="type">TopicPartition</span>, <span class="type">ReplicaAssignment</span>]</span><br><span class="line">    ): <span class="type">Unit</span> = &#123;</span><br><span class="line">      info(<span class="string">&quot;Restoring the partition replica assignment for topic %s&quot;</span>.format(topic))</span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> existingPartitions = zkClient.getChildren(<span class="type">TopicPartitionsZNode</span>.path(topic))</span><br><span class="line">      <span class="keyword">val</span> existingPartitionReplicaAssignment = newPartitionReplicaAssignment</span><br><span class="line">        .filter(p =&gt; existingPartitions.contains(p._1.partition.toString))</span><br><span class="line">        .map &#123; <span class="keyword">case</span> (tp, _) =&gt;</span><br><span class="line">          tp -&gt; controllerContext.partitionFullReplicaAssignment(tp)</span><br><span class="line">      &#125;.toMap</span><br><span class="line"></span><br><span class="line">      zkClient.setTopicAssignment(topic,</span><br><span class="line">        existingPartitionReplicaAssignment,</span><br><span class="line">        controllerContext.epochZkVersion)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!isActive) <span class="keyword">return</span></span><br><span class="line">    <span class="keyword">val</span> partitionReplicaAssignment = zkClient.getFullReplicaAssignmentForTopics(immutable.<span class="type">Set</span>(topic))</span><br><span class="line">    <span class="keyword">val</span> partitionsToBeAdded = partitionReplicaAssignment.filter &#123; <span class="keyword">case</span> (topicPartition, _) =&gt;</span><br><span class="line">      controllerContext.partitionReplicaAssignment(topicPartition).isEmpty</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (topicDeletionManager.isTopicQueuedUpForDeletion(topic)) &#123;</span><br><span class="line">      <span class="keyword">if</span> (partitionsToBeAdded.nonEmpty) &#123;</span><br><span class="line">        warn(<span class="string">&quot;Skipping adding partitions %s for topic %s since it is currently being deleted&quot;</span></span><br><span class="line">          .format(partitionsToBeAdded.map(_._1.partition).mkString(<span class="string">&quot;,&quot;</span>), topic))</span><br><span class="line"></span><br><span class="line">        restorePartitionReplicaAssignment(topic, partitionReplicaAssignment)</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// This can happen if existing partition replica assignment are restored to prevent increasing partition count during topic deletion</span></span><br><span class="line">        info(<span class="string">&quot;Ignoring partition change during topic deletion as no new partitions are added&quot;</span>)</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (partitionsToBeAdded.nonEmpty) &#123;</span><br><span class="line">      info(<span class="string">s&quot;New partitions to be added <span class="subst">$partitionsToBeAdded</span>&quot;</span>)</span><br><span class="line">      partitionsToBeAdded.foreach &#123; <span class="keyword">case</span> (topicPartition, assignedReplicas) =&gt;</span><br><span class="line">        controllerContext.updatePartitionFullReplicaAssignment(topicPartition, assignedReplicas)</span><br><span class="line">      &#125;</span><br><span class="line">      onNewPartitionCreation(partitionsToBeAdded.keySet)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>判断是否Controller,不是则直接结束流程</li>
+<li>获取<code>/brokers/topics/&#123;topicName&#125;</code> 节点信息, 然后再对比一下当前该节点的分区分配信息; 看看有没有是新增的分区; 如果是新增的分区这个时候是还没有<code>/brokers/topics/&#123;topicName&#125;/partitions/&#123;分区号&#125;/state</code> ;  </li>
+<li>如果当前的TOPIC正在被删除中,那么就没有必要执行扩分区了</li>
+<li>将新增加的分区信息加载到内存中</li>
+<li>调用接口<code>KafkaController.onNewPartitionCreation</code></li>
+</ol>
+<h4 id="KafkaController-onNewPartitionCreation-新增分区"><a href="#KafkaController-onNewPartitionCreation-新增分区" class="headerlink" title="KafkaController.onNewPartitionCreation 新增分区"></a>KafkaController.onNewPartitionCreation 新增分区</h4><p>从这里开始 , 后面的流程就跟创建Topic的对应流程一样了; </p>
+<blockquote>
+<p>该接口主要是针对新增分区和副本的一些状态流转过程; 在<a href="">【kafka源码】TopicCommand之创建Topic源码解析</a> 也同样分析过</p>
+</blockquote>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * This callback is invoked by the topic change callback with the list of failed brokers as input.</span></span><br><span class="line"><span class="comment"> * It does the following -</span></span><br><span class="line"><span class="comment"> * 1. Move the newly created partitions to the NewPartition state</span></span><br><span class="line"><span class="comment"> * 2. Move the newly created partitions from NewPartition-&gt;OnlinePartition state</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">onNewPartitionCreation</span></span>(newPartitions: <span class="type">Set</span>[<span class="type">TopicPartition</span>]): <span class="type">Unit</span> = &#123;</span><br><span class="line">  info(<span class="string">s&quot;New partition creation callback for <span class="subst">$&#123;newPartitions.mkString(&quot;,&quot;)&#125;</span>&quot;</span>)</span><br><span class="line">  partitionStateMachine.handleStateChanges(newPartitions.toSeq, <span class="type">NewPartition</span>)</span><br><span class="line">  replicaStateMachine.handleStateChanges(controllerContext.replicasForPartition(newPartitions).toSeq, <span class="type">NewReplica</span>)</span><br><span class="line">  partitionStateMachine.handleStateChanges(</span><br><span class="line">    newPartitions.toSeq,</span><br><span class="line">    <span class="type">OnlinePartition</span>,</span><br><span class="line">    <span class="type">Some</span>(<span class="type">OfflinePartitionLeaderElectionStrategy</span>(<span class="literal">false</span>))</span><br><span class="line">  )</span><br><span class="line">  replicaStateMachine.handleStateChanges(controllerContext.replicasForPartition(newPartitions).toSeq, <span class="type">OnlineReplica</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>将待创建的分区状态流转为<code>NewPartition</code>;<br><img src="https://img-blog.csdnimg.cn/20210616180239988.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></li>
+<li>将待创建的副本 状态流转为<code>NewReplica</code>;<br><img src="https://img-blog.csdnimg.cn/20210616180940961.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></li>
+<li>将分区状态从刚刚的<code>NewPartition</code>流转为<code>OnlinePartition</code></li>
+<li>获取<code>leaderIsrAndControllerEpochs</code>; Leader为副本的第一个;<pre><code>1. 向zk中写入`/brokers/topics/&#123;topicName&#125;/partitions/` 持久节点; 无数据
+2. 向zk中写入`/brokers/topics/&#123;topicName&#125;/partitions/&#123;分区号&#125;` 持久节点; 无数据
+3. 向zk中写入`/brokers/topics/&#123;topicName&#125;/partitions/&#123;分区号&#125;/state` 持久节点; 数据为`leaderIsrAndControllerEpoch`![在这里插入图片描述](https://img-blog.csdnimg.cn/20210616183747171.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70)
+</code></pre>
+<ol start="4">
+<li>向副本所属Broker发送<a href=""><code>leaderAndIsrRequest</code></a>请求</li>
+<li>向所有Broker发送<a href=""><code>UPDATE_METADATA</code> </a>请求</li>
+</ol>
+</li>
+<li>将副本状态从刚刚的<code>NewReplica</code>流转为<code>OnlineReplica</code> ,更新下内存</li>
+</ol>
+<p>关于分区状态机和副本状态机详情请看<a href="TODO">【kafka源码】Controller中的状态机</a></p>
+<h3 id="4-Broker收到LeaderAndIsrRequest-创建本地Log"><a href="#4-Broker收到LeaderAndIsrRequest-创建本地Log" class="headerlink" title="4. Broker收到LeaderAndIsrRequest 创建本地Log"></a>4. Broker收到LeaderAndIsrRequest 创建本地Log</h3><blockquote>
+<p>上面步骤中有说到向副本所属Broker发送<a href=""><code>leaderAndIsrRequest</code></a>请求,那么这里做了什么呢<br>其实主要做的是 创建本地Log</p>
+<p>代码太多,这里我们直接定位到只跟创建Topic相关的关键代码来分析<br><code>KafkaApis.handleLeaderAndIsrRequest-&gt;replicaManager.becomeLeaderOrFollower-&gt;ReplicaManager.makeLeaders...LogManager.getOrCreateLog</code></p>
+</blockquote>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 如果日志已经存在，只返回现有日志的副本否则如果 isNew=true 或者如果没有离线日志目录，则为给定的主题和给定的分区创建日志 否则抛出 KafkaStorageException</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getOrCreateLog</span></span>(topicPartition: <span class="type">TopicPartition</span>, config: <span class="type">LogConfig</span>, isNew: <span class="type">Boolean</span> = <span class="literal">false</span>, isFuture: <span class="type">Boolean</span> = <span class="literal">false</span>): <span class="type">Log</span> = &#123;</span><br><span class="line">  logCreationOrDeletionLock synchronized &#123;</span><br><span class="line">    getLog(topicPartition, isFuture).getOrElse &#123;</span><br><span class="line">      <span class="comment">// create the log if it has not already been created in another thread</span></span><br><span class="line">      <span class="keyword">if</span> (!isNew &amp;&amp; offlineLogDirs.nonEmpty)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">KafkaStorageException</span>(<span class="string">s&quot;Can not create log for <span class="subst">$topicPartition</span> because log directories <span class="subst">$&#123;offlineLogDirs.mkString(&quot;,&quot;)&#125;</span> are offline&quot;</span>)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> logDirs: <span class="type">List</span>[<span class="type">File</span>] = &#123;</span><br><span class="line">        <span class="keyword">val</span> preferredLogDir = preferredLogDirs.get(topicPartition)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (isFuture) &#123;</span><br><span class="line">          <span class="keyword">if</span> (preferredLogDir == <span class="literal">null</span>)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">IllegalStateException</span>(<span class="string">s&quot;Can not create the future log for <span class="subst">$topicPartition</span> without having a preferred log directory&quot;</span>)</span><br><span class="line">          <span class="keyword">else</span> <span class="keyword">if</span> (getLog(topicPartition).get.dir.getParent == preferredLogDir)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">IllegalStateException</span>(<span class="string">s&quot;Can not create the future log for <span class="subst">$topicPartition</span> in the current log directory of this partition&quot;</span>)</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (preferredLogDir != <span class="literal">null</span>)</span><br><span class="line">          <span class="type">List</span>(<span class="keyword">new</span> <span class="type">File</span>(preferredLogDir))</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">          nextLogDirs()</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> logDirName = &#123;</span><br><span class="line">        <span class="keyword">if</span> (isFuture)</span><br><span class="line">          <span class="type">Log</span>.logFutureDirName(topicPartition)</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">          <span class="type">Log</span>.logDirName(topicPartition)</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> logDir = logDirs</span><br><span class="line">        .toStream <span class="comment">// to prevent actually mapping the whole list, lazy map</span></span><br><span class="line">        .map(createLogDirectory(_, logDirName))</span><br><span class="line">        .find(_.isSuccess)</span><br><span class="line">        .getOrElse(<span class="type">Failure</span>(<span class="keyword">new</span> <span class="type">KafkaStorageException</span>(<span class="string">&quot;No log directories available. Tried &quot;</span> + logDirs.map(_.getAbsolutePath).mkString(<span class="string">&quot;, &quot;</span>))))</span><br><span class="line">        .get <span class="comment">// If Failure, will throw</span></span><br><span class="line"></span><br><span class="line">      <span class="keyword">val</span> log = <span class="type">Log</span>(</span><br><span class="line">        dir = logDir,</span><br><span class="line">        config = config,</span><br><span class="line">        logStartOffset = <span class="number">0</span>L,</span><br><span class="line">        recoveryPoint = <span class="number">0</span>L,</span><br><span class="line">        maxProducerIdExpirationMs = maxPidExpirationMs,</span><br><span class="line">        producerIdExpirationCheckIntervalMs = <span class="type">LogManager</span>.<span class="type">ProducerIdExpirationCheckIntervalMs</span>,</span><br><span class="line">        scheduler = scheduler,</span><br><span class="line">        time = time,</span><br><span class="line">        brokerTopicStats = brokerTopicStats,</span><br><span class="line">        logDirFailureChannel = logDirFailureChannel)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (isFuture)</span><br><span class="line">        futureLogs.put(topicPartition, log)</span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        currentLogs.put(topicPartition, log)</span><br><span class="line"></span><br><span class="line">      info(<span class="string">s&quot;Created log for partition <span class="subst">$topicPartition</span> in <span class="subst">$logDir</span> with properties &quot;</span> + <span class="string">s&quot;&#123;<span class="subst">$&#123;config.originals.asScala.mkString(&quot;, &quot;)&#125;</span>&#125;.&quot;</span>)</span><br><span class="line">      <span class="comment">// Remove the preferred log dir since it has already been satisfied</span></span><br><span class="line">      preferredLogDirs.remove(topicPartition)</span><br><span class="line"></span><br><span class="line">      log</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>如果日志已经存在，只返回现有日志的副本否则如果 isNew=true 或者如果没有离线日志目录，则为给定的主题和给定的分区创建日志 否则抛出<code> KafkaStorageException</code></li>
+</ol>
+<p>详细请看 <a href="">【kafka源码】LeaderAndIsrRequest请求</a></p>
+<h2 id="源码总结"><a href="#源码总结" class="headerlink" title="源码总结"></a>源码总结</h2><p>看图说话<br><img src="https://img-blog.csdnimg.cn/2021061718435568.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70#pic_center" alt="在这里插入图片描述"></p>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q&amp;A"></a>Q&amp;A</h2><h3 id="如果自定义的分配Broker不存在会怎么样"><a href="#如果自定义的分配Broker不存在会怎么样" class="headerlink" title="如果自定义的分配Broker不存在会怎么样"></a>如果自定义的分配Broker不存在会怎么样</h3><blockquote>
+<p>会抛出异常<code>Unknown broker(s) in replica assignment</code>, 因为在执行的时候会去zk获取当前的在线Broker列表，然后判断是否在线;</p>
+</blockquote>
+<h3 id="如果设置的分区数不等于-replica-assignment中新增的数目会怎么样"><a href="#如果设置的分区数不等于-replica-assignment中新增的数目会怎么样" class="headerlink" title="如果设置的分区数不等于 --replica-assignment中新增的数目会怎么样"></a>如果设置的分区数不等于 <code>--replica-assignment</code>中新增的数目会怎么样</h3><blockquote>
+<p>会抛出异常<code>Increasing the number of partitions by..</code>结束流程</p>
+</blockquote>
+<h3 id="如果写入-brokers-topics-topicName-之后-Controller监听到请求正好挂掉怎么办"><a href="#如果写入-brokers-topics-topicName-之后-Controller监听到请求正好挂掉怎么办" class="headerlink" title="如果写入/brokers/topics/{topicName}之后 Controller监听到请求正好挂掉怎么办"></a>如果写入<code>/brokers/topics/&#123;topicName&#125;</code>之后 Controller监听到请求正好挂掉怎么办</h3><blockquote>
+<p>Controller挂掉会发生重新选举,选举成功之后, 检查到<code>/brokers/topics/&#123;topicName&#125;</code>之后发现没有生成对应的分区,会自动执行接下来的流程;</p>
+</blockquote>
+<h3 id="如果我手动在zk中写入节点-brokers-topics-topicName-partitions-分区号-state-会怎么样"><a href="#如果我手动在zk中写入节点-brokers-topics-topicName-partitions-分区号-state-会怎么样" class="headerlink" title="如果我手动在zk中写入节点/brokers/topics/{topicName}/partitions/{分区号}/state 会怎么样"></a>如果我手动在zk中写入节点<code>/brokers/topics/&#123;topicName&#125;/partitions/&#123;分区号&#125;/state</code> 会怎么样</h3><blockquote>
+<p>Controller并没有监听这个节点,所以不会有变化; 但是当Controller发生重新选举的时候,<br><strong>被删除的节点会被重新添加回来;</strong><br>但是<strong>写入的节点 就不会被删除了</strong>;写入的节点信息会被保存在Controller内存中;<br>同样这会影响到分区扩容</p>
+<hr>
+<p>例子🌰：<br>当前分区3个,副本一个,手贱在zk上添加了一个节点如下图:<br><img src="https://img-blog.csdnimg.cn/20210617175311911.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"><br>这个时候我想扩展一个分区; 然后执行了脚本, 虽然<code>/brokers/topics/test_create_topic3</code>节点数据变; 但是Broker真正在<code>LeaderAndIsrRequest</code>请求里面没有执行创建本地Log文件; 这是因为源码读取到zk下面partitions的节点数量和新增之后的节点数量没有变更,那么它就认为本次请求没有变更就不会执行创建本地Log文件了;<br>如果判断有变更,还是会去创建的;<br>手贱zk写入N个partition节点 + 扩充N个分区 = Log文件不会被创建<br>手贱zk写入N个partition节点 + 扩充&gt;N个分区 = 正常扩容</p>
+</blockquote>
+<h3 id="如果直接修改节点-brokers-topics-topicName-中的配置会怎么样"><a href="#如果直接修改节点-brokers-topics-topicName-中的配置会怎么样" class="headerlink" title="如果直接修改节点/brokers/topics/{topicName}中的配置会怎么样"></a>如果直接修改节点/brokers/topics/{topicName}中的配置会怎么样</h3><blockquote>
+<p>如果该节点信息是<code>&#123;&quot;version&quot;:2,&quot;partitions&quot;:&#123;&quot;2&quot;:[1],&quot;1&quot;:[1],&quot;0&quot;:[1]&#125;,&quot;adding_replicas&quot;:&#123;&#125;,&quot;removing_replicas&quot;:&#123;&#125;&#125;</code> 看数据,说明3个分区1个副本都在Broker-1上;<br>我在zk上修改成<code>&#123;&quot;version&quot;:2,&quot;partitions&quot;:&#123;&quot;2&quot;:[2],&quot;1&quot;:[1],&quot;0&quot;:[0]&#125;,&quot;adding_replicas&quot;:&#123;&#125;,&quot;removing_replicas&quot;:&#123;&#125;&#125;</code><br>想将分区分配到 Broker-0，Broker-1，Broker-2上<br>TODO。。。</p>
+</blockquote>
+<hr>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">石臻臻</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://example.com/2021/08/21/alter-topic/">http://example.com/2021/08/21/alter-topic/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://example.com" target="_blank">石臻臻的杂货铺</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/kafka/">kafka</a><a class="post-meta__tags" href="/tags/%E5%A4%A7%E6%95%B0%E6%8D%AE/">大数据</a><a class="post-meta__tags" href="/tags/%E6%BA%90%E7%A0%81/">源码</a></div><div class="post_share"><div class="social-share" data-image="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><div class="post-reward"><div class="reward-button button--animated"><i class="fas fa-qrcode"></i> 打赏</div><div class="reward-main"><ul class="reward-all"><li class="reward-item"><a href="/img/wechat.jpg" target="_blank"><img class="post-qr-code-img" src="/img/wechat.jpg" alt="微信"/></a><div class="post-qr-code-desc">微信</div></li></ul></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2021/08/21/delete-topic/"><img class="prev-cover" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">【kafka源码】kafka-topics.sh之删除Topic源码解析</div></div></a></div><div class="next-post pull-right"><a href="/2021/08/21/partition-reasignment/"><img class="next-cover" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">【kafka源码】kafka分区副本的分配规则</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts-list"><div><a href="/2021/08/21/create-topic/" title="【kafka源码】kafka-topics.sh之创建Topic源码解析"><img class="cover" src="https://img-blog.csdnimg.cn/a7a864941d6841098e68e23968bdb2c8.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-08-21</div><div class="title">【kafka源码】kafka-topics.sh之创建Topic源码解析</div></div></a></div><div><a href="/2021/08/21/delete-topic/" title="【kafka源码】kafka-topics.sh之删除Topic源码解析"><img class="cover" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-08-21</div><div class="title">【kafka源码】kafka-topics.sh之删除Topic源码解析</div></div></a></div><div><a href="/2021/08/21/partition-reasignment/" title="【kafka源码】kafka分区副本的分配规则"><img class="cover" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-08-21</div><div class="title">【kafka源码】kafka分区副本的分配规则</div></div></a></div></div></div><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="https://img-blog.csdnimg.cn/a7a864941d6841098e68e23968bdb2c8.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">石臻臻</div><div class="author-info__description">kafka、flink、eleasticsearch、springboot、spring、dubbo、java、redis、mysql</div></div><div class="card-info-data"><div class="card-info-data-item is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a></div><div class="card-info-data-item is-center"><a href="/tags/"><div class="headline">标签</div><div class="length-num">3</div></a></div><div class="card-info-data-item is-center"><a href="/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div></div><a class="button--animated" id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly"><i class="fab fa-github"></i><span>Github</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/didi/LogiKM" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="https://mp.weixin.qq.com/mp/appmsgalbum?__biz=Mzg4ODY1NTcxNg==&amp;action=getalbum&amp;album_id=1966026980307304450#wechat_redirect" target="_blank" title="公众号"><i class="fab fa-weixin"></i></a><a class="social-icon" href="https://blog.csdn.net/u010634066" target="_blank" title="CSDN"><i class="fab fa-cuttlefish"></i></a><a class="social-icon" href="https://github.com/didi/LogiKM" target="_blank" title="RSS"><i class="fas fa-rss"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn card-announcement-animation"></i><span>公告</span></div><div class="announcement_content">博主就职于滴滴,从事开源建设工作
+需要进滴滴开源技术交流群的同学
+可以扫描下面二维码进群
+
+<a target="_blank" rel="noopener" href="https://space.bilibili.com/1603010121">Kafka技术视频</a>
+</div></div><div class="card-widget"><div class="item-headline"><i class="fas fa-heartbeat"></i><span>交个朋友</span></div><div class="item-content">     <div class="aside-content clearfix"> <marquee scrollamount="3"><b> <span> <font color="#FF0000">热心解答相关疑问!</font> </span> </b> </marquee><br /><center> <img src="https://img-blog.csdnimg.cn/d26e6a994afc42128f330363b17869a6.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" alt="watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTA2MzQwNjY=,size_16,color_FFFFFF,t_70" /><br /><h1> <font color="#FF6633">石臻臻的杂货铺</font> </h1> <p>Java/大数据/中间件/教学视频</p> </center>
+</div>
+
+</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%84%9A%E6%9C%AC%E5%8F%82%E6%95%B0"><span class="toc-number">1.</span> <span class="toc-text">脚本参数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Alert-Topic%E8%84%9A%E6%9C%AC"><span class="toc-number">2.</span> <span class="toc-text">Alert Topic脚本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%86%E5%8C%BA%E6%89%A9%E5%AE%B9"><span class="toc-number">3.</span> <span class="toc-text">分区扩容</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="toc-number">4.</span> <span class="toc-text">源码解析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-TopicCommand-alterTopic"><span class="toc-number">4.1.</span> <span class="toc-text">1. TopicCommand.alterTopic</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%8F%91%E8%B5%B7%E8%AF%B7%E6%B1%82createPartitions"><span class="toc-number">4.1.1.</span> <span class="toc-text">客户端发起请求createPartitions</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Controller%E8%A7%92%E8%89%B2%E7%9A%84%E6%9C%8D%E5%8A%A1%E7%AB%AF%E6%8E%A5%E5%8F%97createPartitions%E8%AF%B7%E6%B1%82%E5%A4%84%E7%90%86%E9%80%BB%E8%BE%91"><span class="toc-number">4.2.</span> <span class="toc-text">2. Controller角色的服务端接受createPartitions请求处理逻辑</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#adminZkClient-addPartitions-%E6%B7%BB%E5%8A%A0%E5%88%86%E5%8C%BA"><span class="toc-number">4.2.1.</span> <span class="toc-text"> adminZkClient.addPartitions 添加分区</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#adminZkClient-writeTopicPartitionAssignment%E5%B0%86%E5%88%86%E5%8C%BA%E4%BF%A1%E6%81%AF%E5%86%99%E5%85%A5zk%E4%B8%AD"><span class="toc-number">4.2.2.</span> <span class="toc-text">adminZkClient.writeTopicPartitionAssignment将分区信息写入zk中</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Controller%E7%9B%91%E6%8E%A7%E8%8A%82%E7%82%B9-brokers-topics-topicName-%E7%9C%9F%E6%AD%A3%E5%9C%A8Broker%E4%B8%8A%E5%B0%86%E5%88%86%E5%8C%BA%E5%86%99%E5%85%A5%E7%A3%81%E7%9B%98"><span class="toc-number">4.3.</span> <span class="toc-text">3. Controller监控节点&#x2F;brokers&#x2F;topics&#x2F;{topicName} ,真正在Broker上将分区写入磁盘</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#KafkaController-onNewPartitionCreation-%E6%96%B0%E5%A2%9E%E5%88%86%E5%8C%BA"><span class="toc-number">4.3.1.</span> <span class="toc-text">KafkaController.onNewPartitionCreation 新增分区</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-Broker%E6%94%B6%E5%88%B0LeaderAndIsrRequest-%E5%88%9B%E5%BB%BA%E6%9C%AC%E5%9C%B0Log"><span class="toc-number">4.4.</span> <span class="toc-text">4. Broker收到LeaderAndIsrRequest 创建本地Log</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E6%80%BB%E7%BB%93"><span class="toc-number">5.</span> <span class="toc-text">源码总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Q-amp-A"><span class="toc-number">6.</span> <span class="toc-text">Q&amp;A</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E6%9E%9C%E8%87%AA%E5%AE%9A%E4%B9%89%E7%9A%84%E5%88%86%E9%85%8DBroker%E4%B8%8D%E5%AD%98%E5%9C%A8%E4%BC%9A%E6%80%8E%E4%B9%88%E6%A0%B7"><span class="toc-number">6.1.</span> <span class="toc-text">如果自定义的分配Broker不存在会怎么样</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E6%9E%9C%E8%AE%BE%E7%BD%AE%E7%9A%84%E5%88%86%E5%8C%BA%E6%95%B0%E4%B8%8D%E7%AD%89%E4%BA%8E-replica-assignment%E4%B8%AD%E6%96%B0%E5%A2%9E%E7%9A%84%E6%95%B0%E7%9B%AE%E4%BC%9A%E6%80%8E%E4%B9%88%E6%A0%B7"><span class="toc-number">6.2.</span> <span class="toc-text">如果设置的分区数不等于 --replica-assignment中新增的数目会怎么样</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E6%9E%9C%E5%86%99%E5%85%A5-brokers-topics-topicName-%E4%B9%8B%E5%90%8E-Controller%E7%9B%91%E5%90%AC%E5%88%B0%E8%AF%B7%E6%B1%82%E6%AD%A3%E5%A5%BD%E6%8C%82%E6%8E%89%E6%80%8E%E4%B9%88%E5%8A%9E"><span class="toc-number">6.3.</span> <span class="toc-text">如果写入&#x2F;brokers&#x2F;topics&#x2F;{topicName}之后 Controller监听到请求正好挂掉怎么办</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E6%9E%9C%E6%88%91%E6%89%8B%E5%8A%A8%E5%9C%A8zk%E4%B8%AD%E5%86%99%E5%85%A5%E8%8A%82%E7%82%B9-brokers-topics-topicName-partitions-%E5%88%86%E5%8C%BA%E5%8F%B7-state-%E4%BC%9A%E6%80%8E%E4%B9%88%E6%A0%B7"><span class="toc-number">6.4.</span> <span class="toc-text">如果我手动在zk中写入节点&#x2F;brokers&#x2F;topics&#x2F;{topicName}&#x2F;partitions&#x2F;{分区号}&#x2F;state 会怎么样</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E6%9E%9C%E7%9B%B4%E6%8E%A5%E4%BF%AE%E6%94%B9%E8%8A%82%E7%82%B9-brokers-topics-topicName-%E4%B8%AD%E7%9A%84%E9%85%8D%E7%BD%AE%E4%BC%9A%E6%80%8E%E4%B9%88%E6%A0%B7"><span class="toc-number">6.5.</span> <span class="toc-text">如果直接修改节点&#x2F;brokers&#x2F;topics&#x2F;{topicName}中的配置会怎么样</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2021/08/23/test/" title="test"><img src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="test"/></a><div class="content"><a class="title" href="/2021/08/23/test/" title="test">test</a><time datetime="2021-08-23T09:45:04.000Z" title="发表于 2021-08-23 17:45:04">2021-08-23</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/21/partition-reasignment/" title="【kafka源码】kafka分区副本的分配规则"><img src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【kafka源码】kafka分区副本的分配规则"/></a><div class="content"><a class="title" href="/2021/08/21/partition-reasignment/" title="【kafka源码】kafka分区副本的分配规则">【kafka源码】kafka分区副本的分配规则</a><time datetime="2021-08-21T06:05:53.000Z" title="发表于 2021-08-21 14:05:53">2021-08-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/21/alter-topic/" title="【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)"><img src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)"/></a><div class="content"><a class="title" href="/2021/08/21/alter-topic/" title="【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)">【kafka源码】kafka-topics.sh之alter源码解析(分区扩容)</a><time datetime="2021-08-21T06:03:44.000Z" title="发表于 2021-08-21 14:03:44">2021-08-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/21/delete-topic/" title="【kafka源码】kafka-topics.sh之删除Topic源码解析"><img src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【kafka源码】kafka-topics.sh之删除Topic源码解析"/></a><div class="content"><a class="title" href="/2021/08/21/delete-topic/" title="【kafka源码】kafka-topics.sh之删除Topic源码解析">【kafka源码】kafka-topics.sh之删除Topic源码解析</a><time datetime="2021-08-21T06:00:44.000Z" title="发表于 2021-08-21 14:00:44">2021-08-21</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/21/create-topic/" title="【kafka源码】kafka-topics.sh之创建Topic源码解析"><img src="https://img-blog.csdnimg.cn/a7a864941d6841098e68e23968bdb2c8.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【kafka源码】kafka-topics.sh之创建Topic源码解析"/></a><div class="content"><a class="title" href="/2021/08/21/create-topic/" title="【kafka源码】kafka-topics.sh之创建Topic源码解析">【kafka源码】kafka-topics.sh之创建Topic源码解析</a><time datetime="2021-08-21T03:00:34.000Z" title="发表于 2021-08-21 11:00:34">2021-08-21</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2021 By 石臻臻</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div id="local-search"><div class="search-dialog"><div class="search-dialog__title" id="local-search-title">本地搜索</div><div id="local-input-panel"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="搜索文章" type="text"/></div></div></div><hr/><div id="local-search-results"></div><span class="search-close-button"><i class="fas fa-times"></i></span></div><div id="search-mask"></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/medium-zoom/dist/medium-zoom.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><script src="/js/search/local-search.js"></script><script>var preloader = {
+  endLoading: () => {
+    document.body.style.overflow = 'auto';
+    document.getElementById('loading-box').classList.add("loaded")
+  },
+  initLoading: () => {
+    document.body.style.overflow = '';
+    document.getElementById('loading-box').classList.remove("loaded")
+
+  }
+}
+window.addEventListener('load',preloader.endLoading())</script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: 'Vg1VyvLWwgJXgzJnvIV8TiP1-gzGzoHsz',
+      appKey: '4slpOjymnUid1RDpo778URAC',
+      placeholder: '記得留下你的暱稱和郵箱....可以快速收到回復',
+      avatar: 'monsterid',
+      meta: 'nick,mail,link'.split(','),
+      pageSize: '10',
+      lang: 'zh-CN',
+      recordIP: false,
+      serverURLs: '',
+      emojiCDN: '',
+      emojiMaps: "",
+      enableQQ: true,
+      path: window.location.pathname,
+      requiredFields: ["nick,mail"],
+      visitor: false
+    }, null))
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js').then(initValine)
+}
+
+if ('Valine' === 'Valine' || !true) {
+  if (true) btf.loadComment(document.getElementById('vcomment'),loadValine)
+  else setTimeout(loadValine, 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script></div><script defer="defer" id="fluttering_ribbon" mobile="true" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/canvas-fluttering-ribbon.min.js"></script><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/activate-power-mode.min.js"></script><script>POWERMODE.colorful = true;
+POWERMODE.shake = true;
+POWERMODE.mobile = false;
+document.body.addEventListener('input', POWERMODE);
+</script><script id="click-show-text" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/dist/click-show-text.min.js" data-mobile="false" data-text="kafka,Es,flink,中间件,大数据,java" data-fontsize="15px" data-random="false" async="async"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
